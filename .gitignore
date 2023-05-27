@@ -1,0 +1,4 @@
+jenkins-eks-ansible/aws_credentials.yaml
+infra-repo/credentials.sh
+infra-repo/.terraform*
+Nabil_ScreenShots*

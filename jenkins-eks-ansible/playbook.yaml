@@ -1,0 +1,123 @@
+---
+- name: Deploy Jenkins on EKS cluster
+  hosts: bastion
+  gather_facts: false
+  vars_files:
+  - aws_credentials.yaml
+  tasks:
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - python3-setuptools
+        - python3-distutils
+
+    - name: Install pip
+      become: true
+      shell: curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3 get-pip.py
+
+    - name: Install AWS CLI
+      become: true
+      pip:
+        name: awscli
+        executable: pip3
+        state: present
+
+    - name: Configure AWS credentials
+      become: true
+      shell: aws configure set aws_access_key_id "{{ aws_access_key_id }}" && aws configure set aws_secret_access_key "{{ aws_secret_access_key }}" && aws configure set default.region "{{ aws_region }}"
+
+
+    - name: Install kubectl
+      shell: |
+        KUBECTL_VERSION="v1.23.0"
+        curl -LO "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    - name: Configure Kubeconfig
+      become: true
+      shell: aws eks update-kubeconfig --name "{{ cluster_name }}" --region "{{ cluster_region }}"
+
+    - name: Set KUBECONFIG environment variable
+      shell: export KUBECONFIG=~/.kube/config
+    
+    - name: Install pip package manager
+      raw: |
+        curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+        python3 get-pip.py
+        rm get-pip.py
+
+    - name: Install required Python library (kubernetes)
+      pip:
+        name: kubernetes
+        state: present
+    
+    - name: Create Jenkins namespace
+      k8s:
+        api_version: v1
+        kind: Namespace
+        name: jenkins
+        state: present
+
+    - name: Copy Jenkins deployment YAML file
+      copy:
+        src: jenkins_deployment.yaml
+        dest: /tmp/jenkins_deployment.yaml
+
+    - name: Create Jenkins deployment
+      k8s:
+        src: /tmp/jenkins_deployment.yaml
+        state: present
+        namespace: jenkins
+
+    - name: Copy Jenkins Service YAML file
+      copy:
+        src: jenkins_service.yaml
+        dest: /tmp/jenkins_service.yaml
+
+    - name: Create Jenkins Service
+      k8s:
+        src: /tmp/jenkins_service.yaml
+        state: present
+        namespace: jenkins
+    
+    - name: Create Jenkins ServiceAccount
+      k8s:
+        api_version: v1
+        kind: ServiceAccount
+        name: jenkins-serviceaccount
+        namespace: jenkins
+        state: present
+
+    - name: Copy Jenkins Cluster-Role YAML file
+      copy:
+        src: jenkins-clusterrole.yaml
+        dest: /tmp/jenkins-clusterrole.yaml
+
+    - name: Create Cluster-Role YAML file
+      k8s:
+        src: /tmp/jenkins-clusterrole.yaml
+        state: present
+        namespace: jenkins
+
+    - name: Copy Jenkins Cluster-Role-Binding YAML file
+      copy:
+        src: jenkins-clusterrolebinding.yaml
+        dest: /tmp/jenkins-clusterrolebinding.yaml
+
+    - name: Create Cluster-Role-Binding YAML file
+      k8s:
+        src: /tmp/jenkins-clusterrolebinding.yaml
+        state: present
+        namespace: jenkins
+
+    - name: Get Jenkins admin password
+      become: true
+      shell: kubectl exec -it deployment/jenkins -n jenkins -- cat /var/jenkins_home/secrets/initialAdminPassword
+      register: jenkins_admin_password
+
+    - name: Print Jenkins admin password
+      debug:
+        msg: "Jenkins admin password: {{ jenkins_admin_password.stdout }}"
