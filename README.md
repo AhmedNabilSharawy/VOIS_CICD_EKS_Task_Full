@@ -10,4 +10,4 @@ Jenkins is deployed using Ansible and runs as a Pod within the EKS cluster. It i
 
 This repository provides a comprehensive example of deploying a private EKS cluster, securing communication with a bastion host, and setting up a CI/CD pipeline using Jenkins.
 
-![nabil_digram](https://github.com/AhmedNabilSharawy/VOIS_CICD_EKS_Task_Full/assets/83243320/3fe5686e-5fc8-45a2-929d-0c7fc00b1ec8)
+![nabil_digram](https://github.com/AhmedNabilSharawy/VOIS_CICD_EKS_Task_Full/assets/83243320/7c18f149-900a-482a-8a74-71d83e1ba831)
